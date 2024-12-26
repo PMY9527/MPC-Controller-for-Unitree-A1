@@ -6,7 +6,6 @@ State_MPC::State_MPC(CtrlComponents *ctrlComp)
       _contact(ctrlComp->contact), _robModel(ctrlComp->robotModel),
       _balCtrl(ctrlComp->balCtrl)
 {
-    // t1_prev = std::chrono::high_resolution_clock::now(); // 初始化t1，用于计算mpc所需时间
     _gait = new GaitGenerator(ctrlComp); 
     _gaitHeight = 0.05;
 
