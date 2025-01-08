@@ -31,7 +31,3 @@ After starting the controller, the robot will lie on the ground of the simulator
   <img src="https://github.com/PMY9527/mpc-project/blob/main/illustration.gif" alt="Illustration">
 </p>
 VIDEO DEMO: https://www.youtube.com/watch?v=jxqS9TUR0ow 
-
-
-## Current issues
-This controller is not perfect and I haven't spotted the issue. The robot is not able to trot exactly at where it is told, meaning it will have some displacements even if no instructions are made or after pressing the spacebar. You can have a look at the controller in ```include\FSM\State_MPC.h``` and ```src\FSM\State_MPC.cpp```. 
