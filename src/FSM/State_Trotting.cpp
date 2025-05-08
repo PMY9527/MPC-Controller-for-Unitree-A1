@@ -12,7 +12,7 @@ State_Trotting::State_Trotting(CtrlComponents *ctrlComp)
 {
     _gait = new GaitGenerator(ctrlComp);
 
-    _gaitHeight = 0.05;
+    _gaitHeight = 0.08;
 
 #ifdef ROBOT_TYPE_Go1
     _Kpp = Vec3(70, 70, 70).asDiagonal();
@@ -80,8 +80,6 @@ FSMStateName State_Trotting::checkChange()
 void State_Trotting::run()
 {
     _posBody = _est->getPosition();
-    std::cout << "z" << std::endl 
-              << _posBody(2) << std::endl;
     _velBody = _est->getVelocity();
     _posFeet2BGlobal = _est->getPosFeet2BGlobal();
     _posFeetGlobal = _est->getFeetPos();
@@ -166,12 +164,6 @@ void State_Trotting::calcCmd()
 
 void State_Trotting::calcTau()
 {       
-    std::cout << "********_pcd********" << std::endl
-              << _pcd << std::endl;
-    std::cout << "********_pcd********" << std::endl
-              << _vCmdGlobal << std::endl;
-
-
     _posError = _pcd - _posBody;
     _velError = _vCmdGlobal - _velBody;
 
@@ -189,8 +181,8 @@ void State_Trotting::calcTau()
 
     _forceFeetGlobal = -_balCtrl->calF(_ddPcd, _dWbd, _B2G_RotMat, _posFeet2BGlobal, *_contact);
 
-    std::cout << "********forceFeetGlobal(QP)********" << std::endl
-            << _forceFeetGlobal << std::endl;
+    //std::cout << "********forceFeetGlobal(QP)********" << std::endl
+            //<< _forceFeetGlobal << std::endl;
             
     for (int i(0); i < 4; ++i)
     {
@@ -203,9 +195,6 @@ void State_Trotting::calcTau()
     _forceFeetBody = _G2B_RotMat * _forceFeetGlobal;
     _q = vec34ToVec12(_lowState->getQ());
     _tau = _robModel->getTau(_q, _forceFeetBody);
-
-    std::cout << "********tau(QP)********" << std::endl
-              << _tau << std::endl;
 }
 
 void State_Trotting::calcQQd() 

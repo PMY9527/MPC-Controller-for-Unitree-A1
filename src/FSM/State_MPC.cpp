@@ -7,7 +7,7 @@ State_MPC::State_MPC(CtrlComponents *ctrlComp)
       _balCtrl(ctrlComp->balCtrl)
 {
     _gait = new GaitGenerator(ctrlComp); 
-    _gaitHeight = 0.05;
+    _gaitHeight = 0.08;
 
     // unitree A1 
     _Kpp = Vec3(20, 20, 100).asDiagonal(); 
@@ -30,6 +30,7 @@ State_MPC::State_MPC(CtrlComponents *ctrlComp)
              0,  0,  -1;
 
     setWeight();
+
 
 }
 
@@ -65,14 +66,7 @@ void State_MPC::setWeight()
             1.05, 1.05, 1.05, // w
             20.0, 20.0, 10.0, //vcom 
             0.0;
-            /*
-            Q_diag << 20.0, 10.0, 1.0,
-            0.0, 0.0, 420.0, 
-            0.05, 0.05, 0.05, 
-            30.0, 30.0, 10.0, 
-            0.0; 
-            */
-               
+            
     R_diag <<   1.0, 1.0, 0.1, 
                 1.0, 1.0, 0.1, 
                 1.0, 1.0, 0.1,  
@@ -107,6 +101,8 @@ void State_MPC::setWeight()
     {
         R(i, i) = R_diag_N(0, i);
     }
+    _rFilter = new LPFilter(d_time, 0.5);
+    _pFilter = new LPFilter(d_time, 0.5);
 }
 
 State_MPC::~State_MPC()
@@ -123,8 +119,7 @@ void State_MPC::enter()
     _Rd = rotz(_yawCmd);
     _wCmdGlobal.setZero();
     _ctrlComp->ioInter->zeroCmdPanel();
-    _gait->restart();
-                        
+    _gait->restart();                
 }
 
 void State_MPC::exit()
@@ -151,6 +146,8 @@ FSMStateName State_MPC::checkChange()
 
 void State_MPC::run()
 {   
+    //static auto last_time = std::chrono::high_resolution_clock::now(); 
+
     _posBody = _est->getPosition();
     _velBody = _est->getVelocity();
     _posFeet2BGlobal = _est->getPosFeet2BGlobal();
@@ -187,6 +184,13 @@ void State_MPC::run()
             _lowCmd->setStableGain(i);
         }
     }
+
+    /*
+    auto current_time = std::chrono::high_resolution_clock::now();
+    dt_actual = std::chrono::duration<double>(current_time - last_time).count();
+    last_time = current_time;
+    ROS_INFO("Actual dt: %.4f s", dt_actual);
+    */
 }
 
 void State_MPC::setHighCmd(double vx, double vy, double wz)
@@ -200,7 +204,8 @@ void State_MPC::setHighCmd(double vx, double vy, double wz)
 void State_MPC::getUserCmd()
 {
     /* Movement */
-    _vCmdBody(0) = invNormalize(_userValue.ly, _vxLim(0), _vxLim(1));
+    _vCmdBody(0) = invNormalize(_userValue.ly, -0.5, 0.5);
+    //_vCmdBody(0) = invNormalize(_userValue.ly, _vxLim(0), _vxLim(1)); // +_0.4
     _vCmdBody(1) = -invNormalize(_userValue.lx, _vyLim(0), _vyLim(1));
     _vCmdBody(2) = 0;
 
@@ -220,6 +225,7 @@ void State_MPC::calcCmd()
 
     _pcd(0) = saturation(_pcd(0) + _vCmdGlobal(0) * d_time, Vec2(_posBody(0) - 0.05, _posBody(0) + 0.05));
     _pcd(1) = saturation(_pcd(1) + _vCmdGlobal(1) * d_time, Vec2(_posBody(1) - 0.05, _posBody(1) + 0.05));
+    _pcd(2) = -_robModel->getFeetPosIdeal()(2, 0);
     _vCmdGlobal(2) = 0;
 
     /* Turning */
@@ -234,11 +240,11 @@ void State_MPC::calcTau()
     calcFe();
     
     
-    for (int i = 0; i < 4; ++i) {
-        std::cout << (*_contact)(i) << " ";
-    }
-    std::cout << "********forceFeetGlobal(MPC)********" << std::endl
-             << _forceFeetGlobal << std::endl;
+    //for (int i = 0; i < 4; ++i) {
+    //   std::cout << (*_contact)(i) << " ";
+    //}
+    //std::cout << "********forceFeetGlobal(MPC)********" << std::endl
+    //         << _forceFeetGlobal << std::endl;
     
     for (int i(0); i < 4; ++i)
     {
@@ -276,14 +282,54 @@ void State_MPC::calcQQd()
 #undef inverse
 void State_MPC::calcFe()
 {
+
+    current_euler = _G2B_RotMat.eulerAngles(0, 1, 2);
+
+    _rFilter->addValue(current_euler(0));
+    _pFilter->addValue(current_euler(1));
+
+    roll = _rFilter->getValue();
+    pitch = _pFilter->getValue();
+    
     // 当前状态：欧拉角、机身位置、角速度、机身速度
-    currentStates << _G2B_RotMat.eulerAngles(0, 1, 2), _posBody, _lowState->getGyroGlobal(), _velBody, -g;
-    //std::cout << "********euler angles rpy(MPC)********" << std::endl
-              //<< _G2B_RotMat.eulerAngles(0, 1, 2) << std::endl;
+    //currentStates << 0.0, 0.0, _yaw, _posBody, _lowState->getGyroGlobal(), _velBody, -g;
+    currentStates << 0.0, 0.0, _yaw, _posBody, _lowState->getGyroGlobal(), _velBody, -g;
+
+    msg_euler.x = roll; // Roll
+    msg_euler.y = pitch; // Pitch
+    msg_euler.z = _yaw; // Yaw
+    pub_euler.publish(msg_euler);
+
+    msg_pos.x = currentStates(3); // x
+    msg_pos.y = currentStates(4); // y
+    msg_pos.z = currentStates(5); // z
+    pub_pos.publish(msg_pos);
+
+    msg_speed.x     = currentStates(9); // vx
+    msg_speed.y = currentStates(10); // vy
+    msg_speed.z = currentStates(11); // vz
+    pub_speed.publish(msg_speed);
+
     //std::cout << "_pcd" << std::endl 
        //       << _pcd << std::endl;
     //std::cout << "_posBody" << std::endl 
               //<< _posBody << std::endl;
+
+
+    cmd_euler.x = _dYaw;
+    cmd_euler.y = _dYawCmd;
+    cmd_euler.z = _yawCmd;
+    pubcmd_euler.publish(cmd_euler);
+
+    cmd_pos.x = _pcd(0);
+    cmd_pos.y = _pcd(1);
+    cmd_pos.z = _pcd(2);
+    pubcmd_pos.publish(cmd_pos);
+  
+    cmd_speed.x = _vCmdGlobal(0);
+    cmd_speed.y = _vCmdGlobal(1);
+    cmd_speed.z = _vCmdGlobal(2);
+    pubcmd_speed.publish(cmd_speed);
 
     // 设置期望状态 Xd
     for (int i = 0; i < (mpc_N - 1); i++)
@@ -295,6 +341,8 @@ void State_MPC::calcFe()
         Xd(nx * (mpc_N - 1) + 6 + j) = _wCmdGlobal(j);
     for (int j = 0; j < 3; j++)
         Xd(nx * (mpc_N - 1) + 9 + j) = _vCmdGlobal(j);
+
+    
 
     // 单刚体动力学假设下的 Ac 和 Bc (continuous) 矩阵
     // Ac
@@ -332,11 +380,11 @@ void State_MPC::calcFe()
     //         A^k]' 
     // with a size of (nx * mpc_N, nx)
 
-    // Bqp = [A^0*B(0),           0,          0,         ...     0 
-    //         A^1*B(0),       B(1),
-    //         A^2*B(0),     A*B(1),       B(2),         ...     0
+    // Bqp = [A^0*B,        0,       0,   ...       0 
+    //         A^1*B,       B,            ...
+    //         A^2*B,     A*B,       B,   ...       0
     //         ...
-    //         A^(k-1)*B(0), A^(k-2)*B(1), A^(k-3)*B(2), ... B(k-1)]  
+    //         A^(k-1)*B, A^(k-2)*B, A^(k-3)*B, ... B]  
     // with a size of (nx * mpc_N, nu * mpc_N)
     
     Bqp.resize(nx * mpc_N, nu * mpc_N);
@@ -347,20 +395,21 @@ void State_MPC::calcFe()
     for (int i = 0; i < mpc_N; ++i) {
         if (i == 0) {
             Aqp.block<nx, nx>(nx * i, 0) = Ad;
-        }
-        else {
+        } else {
             Aqp.block<nx, nx>(nx * i, 0) = 
-            Aqp.block<nx, nx>(nx * (i-1), 0) * Ad;
+                Aqp.block<nx, nx>(nx * (i-1), 0) * Ad;
         }
-        Bd_list.block<nx, nu>(i * nx, 0) = Bd;
-        for (int j = 0; j < i + 1; ++j) {
-            if (i-j == 0) {
-                Bqp.block<nx, nu>(nx * i, nu * j) =
-                    Bd_list.block<nx, nu>(j * nx, 0);
+    
+        for (int j = 0; j <= i; ++j) {
+            if (i == j) {
+                Bqp.block<nx, nu>(nx * i, nu * j) = Bd;
             } else {
-                Bqp.block<nx, nu>(nx * i, nu * j) =
-                        Aqp.block<nx,nx>(nx * (i - j -1), 0) 
-                        * Bd_list.block<nx, nu>(j * nx, 0);
+                // 计算 A_d^{i-j_F-1} * Bd
+                Eigen::MatrixXd Ad_power = Eigen::MatrixXd::Identity(nx, nx);
+                for (int k = 0; k < i-j-1; ++k) {
+                    Ad_power *= Ad;
+                }
+                Bqp.block<nx, nu>(nx * i, nu * j) = Ad_power * Bd;
             }
         }
     }
@@ -373,11 +422,10 @@ void State_MPC::calcFe()
 
     gradient.setZero();
     
-    Eigen::Matrix<double, nx * mpc_N, 1> error = Aqp * currentStates; // error = (Aqp * currentStates + Bqp * Fqp) - Xd
+    Eigen::Matrix<double, nx * mpc_N, 1> error = Aqp * currentStates;
     error -= Xd;
     gradient = 2 * error.transpose() * Q * Bqp;
-    //gradient = Bqp.transpose() * Q * tmp_vec;
-
+    
     ConstraintsSetup();
     solveQP();
     _forceFeetGlobal = vec12ToVec34(F_);
@@ -388,7 +436,7 @@ void State_MPC::ConstraintsSetup()
 {
     /* QuadProg++求解器的约束表现形式如下：
 
-    min 0.5 * x' G x + g0' x
+    min J = 0.5 * x' G x + g0' x
     CE^T x + ce0 = 0 
     CI^T x + ci0 >= 0 
 
@@ -504,7 +552,7 @@ void State_MPC::ConstraintsSetup()
         }
         
         for (int i = 0; i < contactLegNum * mpc_N; ++i) {
-            ci0_.segment(i * 5, 5) << 0.0, 0.0, 0.0, 0.0, 70.0;
+          ci0_.segment(i * 5, 5) << 0.0, 0.0, 0.0, 0.0, 70.0;
         }
 
        // std::cout << "********1 ci0(MPC)********" << std::endl
@@ -530,6 +578,11 @@ void State_MPC::solveQP()
     ce0.resize(m);
     ci0.resize(p);
     x.resize(n);
+
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(dense_hessian);
+    if (eigensolver.eigenvalues().minCoeff() <= 0) {
+        ROS_INFO("Hessian is not <POSITIVE DEFINITE>");
+    } // Hessian矩阵正定性判断
 
     for (int i = 0; i < n; ++i)
     {
@@ -571,14 +624,11 @@ void State_MPC::solveQP()
     }
 
     // std::cout << "n:" << n << "m:" << m << "p:" << p << std::endl;
-    double value = solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
+
+    double J = solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
+    //std::cout << "cost:" << J << std::endl;
+
     
-    //auto t1 = std::chrono::high_resolution_clock::now();
-    //std::chrono::duration<double, std::milli> ms_double_1 = t1 - t1_prev;
-    //t1_prev = t1;
-
-    //std::cout << "time for each mpc loop: " << ms_double_1.count() << "ms" << std::endl; 
-
     for (int i = 0; i < 12; ++i)
     {
         F_[i] = -x[i]; 
@@ -596,7 +646,7 @@ Eigen::Matrix<double, 3, 3> State_MPC::CrossProduct_A(Eigen::Matrix<double, 3, 1
 }
 
 Eigen::Matrix<double, 3, 3> State_MPC::Rz3(double theta)
-{ // local to world
+{  // local to world
     // for 2D-XY vector, rotation matrix along z axis
     Eigen::Matrix<double, 3, 3> M;
     M << cos(theta), -sin(theta), 0,

@@ -6,10 +6,13 @@
 #include "control/BalanceCtrl.h"
 #include "thirdParty/quadProgpp/QuadProg++.hh"
 #include "thirdParty/quadProgpp/Array.hh"
+#include "common/LowPassFilter.h"
 #include <chrono>
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <ros/ros.h>
+#include <geometry_msgs/Vector3.h>
 
 
 static const int mpc_N = 5; // MPC 预测区间
@@ -34,6 +37,18 @@ public:
     void setHighCmd(double vx, double vy, double wz);
 
 private:
+    ros::NodeHandle nh;
+    ros::Publisher pub_euler = nh.advertise<geometry_msgs::Vector3>("euler_angles", 10);
+    ros::Publisher pub_pos = nh.advertise<geometry_msgs::Vector3>("position", 10);
+    ros::Publisher pub_speed = nh.advertise<geometry_msgs::Vector3>("linear_speed", 10);
+
+    ros::Publisher pubcmd_euler = nh.advertise<geometry_msgs::Vector3>("cmd_euler_angles", 10);
+    ros::Publisher pubcmd_pos = nh.advertise<geometry_msgs::Vector3>("cmd_position", 10);
+    ros::Publisher pubcmd_speed = nh.advertise<geometry_msgs::Vector3>("cmd_linear_speed", 10);
+
+    geometry_msgs::Vector3 msg_euler, msg_pos, msg_speed, cmd_euler, cmd_pos, cmd_speed;
+    
+    double dt_actual;
     double d_time = 0.002;
     void calcTau();
     void calcQQd();
@@ -48,7 +63,7 @@ private:
 
     // Rob State
     Vec3 _posBody, _velBody;
-    double _yaw, _dYaw;
+    double _yaw, _dYaw, roll, pitch;
     Vec34 _posFeetGlobal, _velFeetGlobal;
     Vec34 _posFeet2BGlobal;
     RotMat _B2G_RotMat, _G2B_RotMat;
@@ -59,7 +74,7 @@ private:
     Vec3 _vCmdGlobal, _vCmdBody;
     double _yawCmd, _dYawCmd;
     double _dYawCmdPast;
-    Vec3 _wCmdGlobal;
+    Vec3 _wCmdGlobal,current_euler;
     Vec34 _posFeetGlobalGoal, _velFeetGlobalGoal;
     Vec34 _posFeet2BGoal, _velFeet2BGoal;
     RotMat _Rd;
@@ -111,6 +126,7 @@ private:
     Eigen::Matrix<double, 3, 3> CrossProduct_A(Eigen::Matrix<double, 3, 1> A);
     Eigen::Matrix<double, 3, 3> Rz3(double theta);
     std::chrono::high_resolution_clock::time_point t1_prev;
+    LPFilter *_rFilter, *_pFilter;
 
     void setWeight();
     void solveQP();

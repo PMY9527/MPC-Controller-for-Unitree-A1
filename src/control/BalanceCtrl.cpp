@@ -5,6 +5,7 @@
 #include "common/mathTools.h"
 #include "common/timeMarker.h"
 
+
 BalanceCtrl::BalanceCtrl(double mass, Mat3 Ib, Mat6 S, double alpha, double beta)
     : _mass(mass), _Ib(Ib), _S(S), _alpha(alpha), _beta(beta)
 {
@@ -121,7 +122,7 @@ void BalanceCtrl::solveQP()
     int n = _F.size();
     int m = _ce0.size();
     int p = _ci0.size();
-    std::cout << "n:" << n << "m:" << m << "p:" << p << std::endl;
+    //std::cout << "n:" << n << "m:" << m << "p:" << p << std::endl;
 
     G.resize(n, n);
     CE.resize(n, m);
@@ -171,6 +172,7 @@ void BalanceCtrl::solveQP()
     }
 
     double value = solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
+    std::cout << "cost:" << value << std::endl;
 
     for (int i = 0; i < n; ++i)
     {
