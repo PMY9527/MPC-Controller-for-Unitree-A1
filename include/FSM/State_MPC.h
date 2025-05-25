@@ -15,15 +15,17 @@
 #include <geometry_msgs/Vector3.h>
 
 
-static const int mpc_N = 5; // MPC 预测区间
-static const int nx = 13;    // 状态向量的维数
-static const int nu = 12;    // 控制输入的维数
-
+// ************************** Important parameters ************************** // 
+static const int mpc_N = 8;  // Prediction horizon
+static const int nx = 13;    // Dimension of state vector
+static const int nu = 12;    // Dimension of control input
+static const double speed_limx = 2.0; // Speed limit in x direction
 static const double NEGATIVE_NUMBER = -1000000.0;
 static const double POSITIVE_NUMBER = 1000000.0;
-
-static const double g = 9.8;
-static const double miu = 0.4; // friction coef.
+static const double fz_max = 180.0; // Max force in z axis
+static const double g = 9.8;         // Gravity
+static const double miu = 0.3;       // Friction coef.
+static const double d_time = 0.01;  // Discretization time step, while the solver solves at 2.5-3.7 ms for horizon of 10, a larger time step is good for margins. 
 
 class State_MPC : public FSMState
 {
@@ -37,6 +39,7 @@ public:
     void setHighCmd(double vx, double vy, double wz);
 
 private:
+    // ************************** Publish for plotting ************************** // 
     ros::NodeHandle nh;
     ros::Publisher pub_euler = nh.advertise<geometry_msgs::Vector3>("euler_angles", 10);
     ros::Publisher pub_pos = nh.advertise<geometry_msgs::Vector3>("position", 10);
@@ -48,13 +51,19 @@ private:
 
     geometry_msgs::Vector3 msg_euler, msg_pos, msg_speed, cmd_euler, cmd_pos, cmd_speed;
     
-    double dt_actual;
-    double d_time = 0.002;
-    void calcTau();
-    void calcQQd();
-    void calcCmd();
+    // ************************** Important parameters ************************** // 
+    void setWeight();
     virtual void getUserCmd();
+    void calcCmd();
+
+    void calcTau(); 
+    void calcQQd();
+
+    void SetMatrices();
+    void ConstraintsSetup();
+    void solveQP();
     void calcFe();
+    void Publishing();
 
     GaitGenerator *_gait;
     Estimator *_est;
@@ -62,13 +71,13 @@ private:
     BalanceCtrl *_balCtrl;
 
     // Rob State
-    Vec3 _posBody, _velBody;
-    double _yaw, _dYaw, roll, pitch;
+    Vec3 _posBody, _velBody, _rpy;
+    double _yaw, _dYaw;
     Vec34 _posFeetGlobal, _velFeetGlobal;
     Vec34 _posFeet2BGlobal;
     RotMat _B2G_RotMat, _G2B_RotMat;
     Vec12 _q;
-
+    
     // Robot command
     Vec3 _pcd;
     Vec3 _vCmdGlobal, _vCmdBody;
@@ -92,7 +101,7 @@ private:
     Vec2 _vxLim, _vyLim, _wyawLim;
     Vec4 *_phase;
     VecInt4 *_contact;
-
+    double dt_actual;
     // MPC用到的变量
     double _mass;       
     Eigen::Matrix<double, 5, 3> miuMat;
@@ -106,9 +115,9 @@ private:
     Eigen::Matrix<double, nx, nu> Bd;
     Eigen::Matrix<double, nx * mpc_N, nx> Aqp;
     Eigen::Matrix<double, nx * mpc_N, nu> Bd_list;
-    Eigen::MatrixXd Bqp;
+    Eigen::MatrixXd Bqp, x_vec, prediction_X;
     Eigen::MatrixXd dense_hessian;
-    Eigen::Matrix<double, nu * mpc_N, 1> gradient, Fqp; // q
+    Eigen::Matrix<double, nu * mpc_N, 1> gradient; // q
     Eigen::MatrixXd Q_diag;
     Eigen::MatrixXd R_diag;
     Eigen::MatrixXd Q_diag_N;
@@ -125,12 +134,6 @@ private:
 
     Eigen::Matrix<double, 3, 3> CrossProduct_A(Eigen::Matrix<double, 3, 1> A);
     Eigen::Matrix<double, 3, 3> Rz3(double theta);
-    std::chrono::high_resolution_clock::time_point t1_prev;
-    LPFilter *_rFilter, *_pFilter;
-
-    void setWeight();
-    void solveQP();
-    void ConstraintsSetup();
 };
 
 #endif // MPC_H

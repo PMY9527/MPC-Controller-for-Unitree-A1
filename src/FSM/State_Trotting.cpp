@@ -12,7 +12,7 @@ State_Trotting::State_Trotting(CtrlComponents *ctrlComp)
 {
     _gait = new GaitGenerator(ctrlComp);
 
-    _gaitHeight = 0.08;
+    _gaitHeight = 0.1;
 
 #ifdef ROBOT_TYPE_Go1
     _Kpp = Vec3(70, 70, 70).asDiagonal();
@@ -181,8 +181,10 @@ void State_Trotting::calcTau()
 
     _forceFeetGlobal = -_balCtrl->calF(_ddPcd, _dWbd, _B2G_RotMat, _posFeet2BGlobal, *_contact);
 
+    Vec3 current_euler = _G2B_RotMat.eulerAngles(0, 1, 2);
+    std::cout << "current_euler" << current_euler << std::endl;
     //std::cout << "********forceFeetGlobal(QP)********" << std::endl
-            //<< _forceFeetGlobal << std::endl;
+      //  << _forceFeetGlobal << std::endl;
             
     for (int i(0); i < 4; ++i)
     {

@@ -172,7 +172,7 @@ void BalanceCtrl::solveQP()
     }
 
     double value = solve_quadprog(G, g0, CE, ce0, CI, ci0, x);
-    std::cout << "cost:" << value << std::endl;
+   // std::cout << "cost:" << value << std::endl;
 
     for (int i = 0; i < n; ++i)
     {

@@ -113,6 +113,10 @@ struct LowlevelState
         return getRotMat() * getGyro();
     }
 
+    Vec3 getRPY(){
+        return rotMatToRPY(getRotMat());
+    }
+
     double getYaw(){
         return rotMatToRPY(getRotMat())(2);
     }
