@@ -43,7 +43,7 @@ VIDEO DEMO: https://www.youtube.com/watch?v=jxqS9TUR0ow
 2. Climbing stairs at 5 cm height and 20 cm length with a high chance of success.
 3. Top speed ~ 1.7 m/s
 
-# Single Rigid Body Dynamics Equations
+# Dynamics & Controller design
 
 ### Translational Motion
 
@@ -162,7 +162,6 @@ Therefore, the discretized matrices $A_D$ and $B_D$ can be written as:
 - $A_D = I + dt \cdot A_c$
 - $B_D = dt \cdot B_c$
 
-In this project, the MPC solver computation time ranges from 1.9 to 2.3 ms, so dt is set to 0.002 s.
 
 # Controller Design
 
@@ -246,7 +245,7 @@ f_z
 
 ### Stance Leg Constraints
 
-For stance legs, constraints ensure no slipping and $f_z < 70N$ (for stability). For each stance leg:
+For stance legs, constraints ensure no slipping and $f_z < 180N$ (for stability). For each stance leg:
 
 $$\begin{bmatrix}
 1 & 0 & \mu \\
@@ -263,7 +262,7 @@ f_z
 0 \\
 0 \\
 0 \\
--70
+-180
 \end{bmatrix}$$
 
 where $\mu$ is the friction coefficient.
