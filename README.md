@@ -39,9 +39,9 @@ After starting the controller, the robot will lie on the ground of the simulator
 1. ~ 300 HZ at 10 Prediction Horizon 
 2. Climbing stairs at 5 cm height and 20 cm length with a high chance of success.
 3. Top speed ~ 1.7 m/s
-<div align="center" style="display: flex; justify-content: center; gap: 10px;">
-  <img src="https://github.com/PMY9527/mpc-project/blob/main/StairsDEMO.gif" alt="Illustration" style="width: 200px;">
-  <img src="https://github.com/PMY9527/mpc-project/blob/main/PushDEMO.gif" alt="Illustration1" style="width: 200px;">
+<div align="center" style="display: flex; justify-content: center; gap: 100px;">
+  <img src="https://github.com/PMY9527/mpc-project/blob/main/StairsDEMO.gif" alt="Illustration" style="width: 400px;">
+  <img src="https://github.com/PMY9527/mpc-project/blob/main/PushDEMO.gif" alt="Illustration1" style="width: 400px;">
 </div>
 
 # Dynamics & Controller design
