@@ -43,3 +43,6 @@ After starting the controller, the robot will lie on the ground of the simulator
   <img src="https://github.com/PMY9527/mpc-project/blob/main/StairsDEMO.gif" alt="Illustration" style="width: 500px;">
   <img src="https://github.com/PMY9527/mpc-project/blob/main/PushDEMO.gif" alt="Illustration1" style="width: 500px;">
 </div>
+
+### Potential Improvements
+Add warmstart for the solver.
