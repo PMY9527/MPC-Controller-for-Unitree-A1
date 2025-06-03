@@ -19,7 +19,7 @@
 static const int mpc_N = 8;  // Prediction horizon
 static const int nx = 13;    // Dimension of state vector
 static const int nu = 12;    // Dimension of control input
-static const double speed_limx = 2.0; // Speed limit in x direction
+static const double speed_limx = 1.5; // Speed limit in x direction
 static const double NEGATIVE_NUMBER = -1000000.0;
 static const double POSITIVE_NUMBER = 1000000.0;
 static const double fz_max = 180.0; // Max force in z axis
