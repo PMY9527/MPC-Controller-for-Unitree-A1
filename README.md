@@ -9,6 +9,8 @@ This MPC controller is based on the following open-source projects:
  
 The controller locates at [State_MPC.cpp](https://github.com/PMY9527/MPC-Controller-for-Unitree-A1/blob/main/src/FSM/State_MPC.cpp) and [State_MPC.h](https://github.com/PMY9527/MPC-Controller-for-Unitree-A1/blob/main/include/FSM/State_MPC.h).
 
+## Note
+This is a basic MPC controller implementation for quadrupeds. 
 
 ## Environment
 My environment is ROS Noetic and Ubuntu 20.04, but it should run just fine in ROS Melodic and Ubuntu 18.04.
@@ -44,5 +46,7 @@ After starting the controller, the robot will lie on the ground of the simulator
   <img src="https://github.com/PMY9527/mpc-project/blob/main/PushDEMO.gif" alt="Illustration1" style="width: 500px;">
 </div>
 
-### Potential Improvements
-Add warmstart for the solver.
+## Potential Improvements
+Add warmstart for the solver + slope estimation.
+
+
